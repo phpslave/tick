@@ -1,0 +1,128 @@
+version: '3'
+services:
+
+  influxdb:
+    build:
+      context: ./influxdb
+    container_name: ${ORG}_influxdb
+    env_file: 
+      - ./conf/defaults
+    labels:
+      - "maintainer=${ORG} Devops <devops@${ORG}.com>"
+      - "com.${ORG}.influxdb=Data store for the TICK Stack."
+      - "version=1.0"
+    ports:
+      - 8083:8083/tcp
+      - 8086:8086/tcp
+      - 8088:8088/tcp
+    tty: true
+    command:
+      - /usr/bin/influxd
+      - -config
+      - /etc/influxdb/influxdb.conf
+    hostname: ${ORG}_influxdb
+    image: ${ORG}/influxdb
+    volumes:
+      - /data/influx/data
+      - /data/influx/meta
+      - /data/influx/wal
+    working_dir: /etc/influxdb
+    stdin_open: true
+
+  kapacitor:
+    build: ./kapacitor
+    container_name: ${ORG}_kapacitor
+    env_file: 
+      - ./conf/defaults
+    labels:
+      - "maintainer=${ORG} Devops <devops@${ORG}.com>"
+      - "com.${ORG}.kapacitor=Event processor for the TICK Stack."
+      - "version=1.0"
+    depends_on:
+      - influxdb
+    ports:
+    - 9092:9092/tcp
+    tty: true
+    command:
+      - /usr/bin/kapacitord
+      - -config
+      - /etc/kapacitor/kapacitor.conf
+    image: ${ORG}/kapacitor
+    volumes:
+      - /data/kapacitor
+    working_dir: /etc/kapacitor
+    stdin_open: true
+
+  telegraf:
+    build: ./telegraf
+    container_name: ${ORG}_telegraf
+    env_file: 
+      - ./conf/defaults
+    labels:
+      - "maintainer=${ORG} Devops <devops@${ORG}.com>"
+      - "com.${ORG}.telegraf=Metric collector for the TICK Stack."
+      - "version=1.0"
+    depends_on:
+      - influxdb
+    ports:
+      - 8125:8125/tcp
+      - 8125:8125/udp
+    tty: true
+    command:
+      - /usr/bin/telegraf
+      - -config
+      - /etc/telegraf/telegraf.conf
+    image: ${ORG}/telegraf
+    working_dir: /etc/telegraf
+    stdin_open: true
+  
+  # chronograf:
+  #   build: ./chronograf
+  #   container_name: ${ORG}_chronograf
+  #   env_file: 
+  #     - ./conf/defaults
+  #   labels:
+  #     - "maintainer=${ORG} Devops <devops@${ORG}.com>"
+  #     - "com.${ORG}.chronograf=Dashboarding service for the TICK Stack."
+  #     - "version=1.0"
+  #   depends_on:
+  #     - influxdb
+  #   ports:
+  #     - 10000:10000/tcp
+  #   tty: true
+  #   command:
+  #     - /usr/bin/chronograf
+  #     - -config
+  #     - /etc/chronograf/chronograf.conf
+  #   image: ${ORG}/chronograf
+  #   volumes:
+  #     - /data/chronograf
+  #   working_dir: /etc/chronograf
+  #   stdin_open: true
+
+  grafana:
+    build: ./grafana
+    container_name: ${ORG}_grafana
+    env_file: 
+      - ./conf/defaults
+    labels:
+      - "maintainer=${ORG} Devops <devops@${ORG}.com>"
+      - "com.${ORG}.grafana=Another dashboarding service."
+      - "version=1.0"
+    depends_on:
+      - influxdb
+    ports:
+      - 3000:3000/tcp
+    tty: true
+    command:
+      - /usr/sbin/grafana-server
+      - --pidfile=/var/run/grafana-server.pid
+      - --config=/etc/grafana/grafana.ini
+      - cfg:default.paths.data=/var/lib/grafana
+      - cfg:default.paths.logs=/var/log/grafana
+      - cfg:default.paths.plugins=/var/lib/grafana/plugins
+    image: ${ORG}/grafana
+    volumes:
+      - /var/lib/grafana
+    working_dir: /usr/share/grafana
+    stdin_open: true
